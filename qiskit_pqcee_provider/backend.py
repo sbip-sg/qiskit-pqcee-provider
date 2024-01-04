@@ -3,9 +3,11 @@ from qiskit.providers import ProviderV1 as Provider
 from qiskit.transpiler import Target
 from qiskit.providers import Options
 from qiskit.circuit import Measure
-from qiskit.circuit.library import PhaseGate, CXGate, IGate
+from qiskit.circuit.library import PhaseGate, CXGate, IGate, RXGate
 from qiskit.circuit.library import XGate, HGate, CCXGate, TGate, YGate
-from qiskit.circuit.library import ZGate, CPhaseGate
+from qiskit.circuit.library import ZGate, CPhaseGate, SGate, RGate, CRXGate
+from qiskit.circuit.equivalence_library import SessionEquivalenceLibrary
+from qiskit.circuit.gate import Gate
 import numpy as np
 import logging
 import qiskit
@@ -17,6 +19,92 @@ from solcx import compile_source
 from .job import BlockcahinJob
 
 logger = logging.getLogger(__name__)
+
+
+class MyRXGate(Gate):
+    r"""Single-qubit rotation about the X axis.
+
+    **Circuit symbol:**
+
+    .. parsed-literal::
+
+             ┌───────┐
+        q_0: ┤ Rx(ϴ) ├
+             └───────┘
+
+    **Matrix Representation:**
+
+    .. math::
+
+        \newcommand{\th}{\frac{\theta}{2}}
+
+        RX(\theta) = exp(-i \th X) =
+            \begin{pmatrix}
+                \cos{\th}   & -i\sin{\th} \\
+                -i\sin{\th} & \cos{\th}
+            \end{pmatrix}
+    """
+
+    def __init__(self, theta, label=None):
+        """Create new RX gate."""
+        super().__init__('myrx', 1, [theta], label=label)
+
+    def _define(self):
+        """
+        gate rx(theta) a {r(theta, 0) a;}
+        """
+        # pylint: disable=cyclic-import
+        q = qiskit.QuantumRegister(1, 'q')
+        qc = qiskit.QuantumCircuit(q, name=self.name)
+        theta = self.params[0]
+        if np.abs(theta) > np.pi/2:
+            rules = [
+                (XGate(), [q[0]], [])
+            ]
+        else:
+            rules = [
+                (YGate(), [q[0]], [])
+            ]
+        qc._data = rules
+        self.definition = qc
+
+    def control(self, num_ctrl_qubits=1, label=None, ctrl_state=None):
+        """Return a (mutli-)controlled-RX gate.
+
+        Args:
+            num_ctrl_qubits (int): number of control qubits.
+            label (str or None): An optional label for the gate [Default: None]
+            ctrl_state (int or str or None): control state expressed as integer
+                string (e.g. '110'), or None. If None, use all 1s.
+
+        Returns:
+            ControlledGate: controlled version of this gate.
+        """
+        if num_ctrl_qubits == 1:
+            gate = CRXGate(self.params[0], label=label, ctrl_state=ctrl_state)
+            gate.base_gate.label = self.label
+            return gate
+        return super().control(
+            num_ctrl_qubits=num_ctrl_qubits,
+            label=label,
+            ctrl_state=ctrl_state
+        )
+
+    def inverse(self):
+        r"""Return inverted RX gate.
+
+        :math:`RX(\lambda)^{\dagger} = RX(-\lambda)`
+        """
+        return MyRXGate(-self.params[0])
+
+    def to_matrix(self):
+        """Return a numpy.array for the RX gate."""
+        cos = np.cos(self.params[0] / 2)
+        sin = np.sin(self.params[0] / 2)
+        return np.array([
+            [cos, -1j * sin],
+            [-1j * sin, cos]
+        ], dtype=complex)
 
 
 class BlockchainBackend(Backend):
@@ -133,11 +221,54 @@ class BlockchainBackend(Backend):
                         ]}
                     )
                 case "P45":
+                    # p45 = PhaseGate(np.pi/4, label='p45')
+                    qc = qiskit.QuantumCircuit(1, name='p45')
+                    qc.p(np.pi/4, 0)
+                    p45_instruction = qc.to_instruction()
                     self._target.add_instruction(
-                        PhaseGate(np.pi/4),
-                        {(qubit,): None for qubit in range(num_qubits)},
-                        name='p45'
+                        p45_instruction,
+                        {(qubit,): None for qubit in range(num_qubits)}
                     )
+                    q = qiskit.QuantumRegister(1, "q")
+                    def_p_s = qiskit.QuantumCircuit(q)
+                    def_p_s.append(p45_instruction, [q[0]], [])
+                    def_p_s.append(p45_instruction, [q[0]], [])
+                    SessionEquivalenceLibrary.add_equivalence(
+                        SGate(), def_p_s)
+                    theta = qiskit.circuit.Parameter("ϴ")
+                    # phi = qiskit.circuit.Parameter("φ")
+                    # self._target.add_instruction(
+                    #    RGate(theta, phi),
+                    #    {(qubit,): None for qubit in range(num_qubits)}
+                    # )
+                    #qc = qiskit.QuantumCircuit(1, name='myrx')
+                    #qc.append(MyRXGate(theta), [0], [])
+                    #myrx_instruction = qc.to_instruction()
+                    #self._target.add_instruction(
+                    #    myrx_instruction,
+                    #    {(qubit,): None for qubit in range(num_qubits)}
+                    #)
+                    self._target.add_instruction(
+                        MyRXGate(theta),
+                        {(qubit,): None for qubit in range(num_qubits)}
+                    )
+                    q = qiskit.QuantumRegister(1, "q")
+                    def_rx_my_rx = qiskit.QuantumCircuit(q)
+                    def_rx_my_rx.append(MyRXGate(theta), [q[0]], [])
+                    # q = qiskit.QuantumRegister(1, "q")
+                    # def_rx_my_rx = qiskit.QuantumCircuit(q)
+                    # def_rx_my_rx.append(myrx_instruction, [q[0]], [])
+                    # print(def_rx_my_rx.num_clbits)
+                    # print(def_rx_my_rx.num_qubits)
+                    # print(RXGate(theta).num_clbits)
+                    # print(RXGate(theta).num_qubits)
+                    #SessionEquivalenceLibrary.set_entry(
+                    #    RXGate(theta), [def_rx_my_rx]
+                    #)
+                    SessionEquivalenceLibrary.add_equivalence(
+                        RXGate(theta), def_rx_my_rx
+                    )
+
                 case "T":
                     self._target.add_instruction(
                         TGate(),
@@ -153,11 +284,20 @@ class BlockchainBackend(Backend):
                         ZGate(),
                         {(qubit,): None for qubit in range(num_qubits)}
                     )
-                case "CP45":
+                case "CP":
+                    qc = qiskit.QuantumCircuit(2, name='cp45')
+                    qc.cp(np.pi/4, 0, 1)
+                    cp45_instruction = qc.to_instruction()
                     self._target.add_instruction(
-                        CPhaseGate(np.pi/4),
-                        {(qubit,): None for qubit in range(num_qubits)},
-                        name='cp45'
+                        cp45_instruction,
+                        {
+                            edge: None for edge in [
+                                (x, y)
+                                for x in range(num_qubits)
+                                for y in range(num_qubits)
+                                if x != y
+                            ]
+                        }
                     )
                 case "m":
                     self._target.add_instruction(
