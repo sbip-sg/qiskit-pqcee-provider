@@ -58,12 +58,8 @@ import "./QuantumBackendInterface.sol";
 contract QuantumBackend is IQuantumBackend
 {
 	address public owner;
-	mapping(address => uint256) public balances;
-	uint256 feePerBlock = 10**8;
-	uint256 evalPeriod = 1;
 	
 	uint8 constant MAX_QUBITS=8;
-	uint8 constant SUBSCRIPTION_QUBITS=5;
 	uint256 constant MAX_IDX=2**MAX_QUBITS;
 	bytes1 constant GATE_H      = 'H';
 	bytes1 constant GATE_I      = 'I';
@@ -72,15 +68,15 @@ contract QuantumBackend is IQuantumBackend
 	bytes1 constant GATE_X      = 'X';
 	bytes1 constant GATE_Y      = 'Y';
 	bytes1 constant GATE_Z      = 'Z';
-	bytes1 constant GATE_P      = 'P';
-	bytes1 constant GATE_p      = 'p'; // conjugate P gate
+	bytes1 constant GATE_S      = 'S';
+	bytes1 constant GATE_s      = 's'; // conjugate S gate sdg
 	bytes1 constant GATE_T      = 'T';
-	bytes1 constant GATE_t      = 't'; // conjugate T gate
+	bytes1 constant GATE_t      = 't'; // conjugate T gate tdg
 	bytes1 constant GATE_m      = 'm';
 	bytes1 constant DELIM_NEXT  = ',';
 	bytes1 constant DELIM_END   = '.';
 
-	string[] public gatesNames = ["H","I","CN","CCN","X","Y","Z","P45","T","CP","m"];
+	string[] public gatesNames = ["H","I","CN","CCN","X","Y","Z","S","s","T","t","CS","Cs","CT","Ct","m"];
 	
 	struct Qubit
 	{
@@ -222,7 +218,7 @@ contract QuantumBackend is IQuantumBackend
 
 	}
 
-	function qc_CP(uint256 cMask, uint256 mask, uint256 currState, Qubit memory q, uint8 Qidx) internal pure 
+	function GATE_CS(uint256 cMask, uint256 mask, uint256 currState, Qubit memory q, uint8 Qidx) internal pure 
 	{
 		uint8 nQidx = (Qidx == 0)?1:0;
 		if ((cMask & currState) == cMask) // allow cMask == 0 ==> just P, not CP
@@ -246,7 +242,7 @@ contract QuantumBackend is IQuantumBackend
 
 	}
 
-	function qc_Cp(uint256 cMask, uint256 mask, uint256 currState, Qubit memory q, uint8 Qidx) internal pure 
+	function GATE_Cs(uint256 cMask, uint256 mask, uint256 currState, Qubit memory q, uint8 Qidx) internal pure 
 	{
 		uint8 nQidx = (Qidx == 0)?1:0;
 		if ((cMask & currState) == cMask) // allow cMask == 0 ==> just p, not Cp
@@ -446,7 +442,7 @@ contract QuantumBackend is IQuantumBackend
 						qc_CN(cMask,mask,j,q,Qidx);
 				}
 			}
-			else if ((qAlgo[i] == GATE_P) || (qAlgo[i] == GATE_p))
+			else if ((qAlgo[i] == GATE_S) || (qAlgo[i] == GATE_s))
 			{
 				uint256 tempVal = 1;
 				tempVal <<= numQubits-1;
@@ -462,10 +458,10 @@ contract QuantumBackend is IQuantumBackend
 				{
 					if ((q.rQubits[j][Qidx]!=0) || (q.iQubits[j][Qidx] != 0))
 					{
-						if (qAlgo[i] == GATE_P)
-							qc_CP(cMask,mask,j,q,Qidx);
+						if (qAlgo[i] == GATE_S)
+							GATE_CS(cMask,mask,j,q,Qidx);
 						else
-							qc_Cp(cMask,mask,j,q,Qidx);
+							GATE_Cs(cMask,mask,j,q,Qidx);
 					}
 				}
 			}

@@ -12,7 +12,7 @@ REQUIREMENTS = [
 
 setuptools.setup(
     name='qiskit_pqcee_provider',
-    version='0.1.0',
+    version='0.2.0',
     description='A qiskit provider on the blockchain.',
     long_description=README,
     long_description_content_type="text/markdown",
@@ -31,16 +31,11 @@ setuptools.setup(
         "Operating System :: Microsoft :: Windows",
         "Operating System :: MacOS",
         "Operating System :: POSIX :: Linux",
-        "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Topic :: Scientific/Engineering",
     ],
-    python_requires=">=3.6, <4",
+    python_requires=">=3.10, <4",
     zip_safe=False,
     include_package_data=True,
 )

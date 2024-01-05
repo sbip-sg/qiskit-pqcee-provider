@@ -4,9 +4,15 @@ from qiskit.transpiler import Target
 from qiskit.providers import Options
 from qiskit.circuit import Measure
 from qiskit.circuit.library import PhaseGate, CXGate, IGate, RXGate
-from qiskit.circuit.library import XGate, HGate, CCXGate, TGate, YGate
-from qiskit.circuit.library import ZGate, CPhaseGate, SGate, RGate, CRXGate
+from qiskit.circuit.library import XGate, HGate, CCXGate, YGate
+from qiskit.circuit.library import ZGate, CPhaseGate, RGate, CRXGate
+from qiskit.circuit.library import SGate, SdgGate, TGate, TdgGate
+from qiskit.circuit.library import CSGate, CSdgGate
 from qiskit.circuit.equivalence_library import SessionEquivalenceLibrary
+from qiskit.synthesis import generate_basic_approximations
+from qiskit.transpiler.passes.synthesis import SolovayKitaev
+from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
+from qiskit.transpiler import PassManager
 from qiskit.circuit.gate import Gate
 import numpy as np
 import logging
@@ -19,92 +25,6 @@ from solcx import compile_source
 from .job import BlockcahinJob
 
 logger = logging.getLogger(__name__)
-
-
-class MyRXGate(Gate):
-    r"""Single-qubit rotation about the X axis.
-
-    **Circuit symbol:**
-
-    .. parsed-literal::
-
-             ┌───────┐
-        q_0: ┤ Rx(ϴ) ├
-             └───────┘
-
-    **Matrix Representation:**
-
-    .. math::
-
-        \newcommand{\th}{\frac{\theta}{2}}
-
-        RX(\theta) = exp(-i \th X) =
-            \begin{pmatrix}
-                \cos{\th}   & -i\sin{\th} \\
-                -i\sin{\th} & \cos{\th}
-            \end{pmatrix}
-    """
-
-    def __init__(self, theta, label=None):
-        """Create new RX gate."""
-        super().__init__('myrx', 1, [theta], label=label)
-
-    def _define(self):
-        """
-        gate rx(theta) a {r(theta, 0) a;}
-        """
-        # pylint: disable=cyclic-import
-        q = qiskit.QuantumRegister(1, 'q')
-        qc = qiskit.QuantumCircuit(q, name=self.name)
-        theta = self.params[0]
-        if np.abs(theta) > np.pi/2:
-            rules = [
-                (XGate(), [q[0]], [])
-            ]
-        else:
-            rules = [
-                (YGate(), [q[0]], [])
-            ]
-        qc._data = rules
-        self.definition = qc
-
-    def control(self, num_ctrl_qubits=1, label=None, ctrl_state=None):
-        """Return a (mutli-)controlled-RX gate.
-
-        Args:
-            num_ctrl_qubits (int): number of control qubits.
-            label (str or None): An optional label for the gate [Default: None]
-            ctrl_state (int or str or None): control state expressed as integer
-                string (e.g. '110'), or None. If None, use all 1s.
-
-        Returns:
-            ControlledGate: controlled version of this gate.
-        """
-        if num_ctrl_qubits == 1:
-            gate = CRXGate(self.params[0], label=label, ctrl_state=ctrl_state)
-            gate.base_gate.label = self.label
-            return gate
-        return super().control(
-            num_ctrl_qubits=num_ctrl_qubits,
-            label=label,
-            ctrl_state=ctrl_state
-        )
-
-    def inverse(self):
-        r"""Return inverted RX gate.
-
-        :math:`RX(\lambda)^{\dagger} = RX(-\lambda)`
-        """
-        return MyRXGate(-self.params[0])
-
-    def to_matrix(self):
-        """Return a numpy.array for the RX gate."""
-        cos = np.cos(self.params[0] / 2)
-        sin = np.sin(self.params[0] / 2)
-        return np.array([
-            [cos, -1j * sin],
-            [-1j * sin, cos]
-        ], dtype=complex)
 
 
 class BlockchainBackend(Backend):
@@ -120,6 +40,10 @@ class BlockchainBackend(Backend):
     r"""
     The seed random state
     """
+    skd_pass_manager: PassManager = None
+    r"""
+    The pass manager for the Solovay-Kitaev algorithm.
+    """
 
     def __init__(
             self,
@@ -128,6 +52,8 @@ class BlockchainBackend(Backend):
             backend_address: str,
             is_local: bool = False,
             backend_seed: int = 0,
+            basic_approx_depth: int = 3,
+            skd_recursion_degree: int = 3,
     ):
         r"""
         Args:
@@ -136,6 +62,8 @@ class BlockchainBackend(Backend):
             backend_address: The address of the backend smart contract.
             is_local: If the backend is local or not.
             backend_seed: The seed for the backend.
+            basic_approx_depth: The depth of the basic approximation.
+            skd_recursion_degree: The recursion degree for the Solovay-Kitaev
         """
         # get the backend interface for the abi
         mod_path = pathlib.Path(__file__).parent.absolute()
@@ -180,6 +108,9 @@ class BlockchainBackend(Backend):
             num_qubits=num_qubits
         )
 
+        aprox_basis_gates = []
+
+        # depending on the gates names, add the gates to the target
         for gate_name in gates_names:
             match gate_name:
                 case "I":
@@ -192,11 +123,13 @@ class BlockchainBackend(Backend):
                         XGate(),
                         {(qubit,): None for qubit in range(num_qubits)}
                     )
+                    aprox_basis_gates.append("x")
                 case "H":
                     self._target.add_instruction(
                         HGate(),
                         {(qubit,): None for qubit in range(num_qubits)}
                     )
+                    aprox_basis_gates.append("h")
                 case "CN":
                     self._target.add_instruction(
                         CXGate(),
@@ -220,84 +153,61 @@ class BlockchainBackend(Backend):
                             if x != y and x != z and y != z
                         ]}
                     )
-                case "P45":
-                    # p45 = PhaseGate(np.pi/4, label='p45')
-                    qc = qiskit.QuantumCircuit(1, name='p45')
-                    qc.p(np.pi/4, 0)
-                    p45_instruction = qc.to_instruction()
+                case "S":
                     self._target.add_instruction(
-                        p45_instruction,
+                        SGate(),
                         {(qubit,): None for qubit in range(num_qubits)}
                     )
-                    q = qiskit.QuantumRegister(1, "q")
-                    def_p_s = qiskit.QuantumCircuit(q)
-                    def_p_s.append(p45_instruction, [q[0]], [])
-                    def_p_s.append(p45_instruction, [q[0]], [])
-                    SessionEquivalenceLibrary.add_equivalence(
-                        SGate(), def_p_s)
-                    theta = qiskit.circuit.Parameter("ϴ")
-                    # phi = qiskit.circuit.Parameter("φ")
-                    # self._target.add_instruction(
-                    #    RGate(theta, phi),
-                    #    {(qubit,): None for qubit in range(num_qubits)}
-                    # )
-                    #qc = qiskit.QuantumCircuit(1, name='myrx')
-                    #qc.append(MyRXGate(theta), [0], [])
-                    #myrx_instruction = qc.to_instruction()
-                    #self._target.add_instruction(
-                    #    myrx_instruction,
-                    #    {(qubit,): None for qubit in range(num_qubits)}
-                    #)
+                    aprox_basis_gates.append("s")
+                case "s":
                     self._target.add_instruction(
-                        MyRXGate(theta),
+                        SdgGate(),
                         {(qubit,): None for qubit in range(num_qubits)}
                     )
-                    q = qiskit.QuantumRegister(1, "q")
-                    def_rx_my_rx = qiskit.QuantumCircuit(q)
-                    def_rx_my_rx.append(MyRXGate(theta), [q[0]], [])
-                    # q = qiskit.QuantumRegister(1, "q")
-                    # def_rx_my_rx = qiskit.QuantumCircuit(q)
-                    # def_rx_my_rx.append(myrx_instruction, [q[0]], [])
-                    # print(def_rx_my_rx.num_clbits)
-                    # print(def_rx_my_rx.num_qubits)
-                    # print(RXGate(theta).num_clbits)
-                    # print(RXGate(theta).num_qubits)
-                    #SessionEquivalenceLibrary.set_entry(
-                    #    RXGate(theta), [def_rx_my_rx]
-                    #)
-                    SessionEquivalenceLibrary.add_equivalence(
-                        RXGate(theta), def_rx_my_rx
-                    )
-
+                    aprox_basis_gates.append("sdg")
                 case "T":
                     self._target.add_instruction(
                         TGate(),
                         {(qubit,): None for qubit in range(num_qubits)}
                     )
+                    aprox_basis_gates.append("t")
+                case "t":
+                    self._target.add_instruction(
+                        TdgGate(),
+                        {(qubit,): None for qubit in range(num_qubits)}
+                    )
+                    aprox_basis_gates.append("tdg")
                 case "Y":
                     self._target.add_instruction(
                         YGate(),
                         {(qubit,): None for qubit in range(num_qubits)}
                     )
+                    aprox_basis_gates.append("y")
                 case "Z":
                     self._target.add_instruction(
                         ZGate(),
                         {(qubit,): None for qubit in range(num_qubits)}
                     )
-                case "CP":
-                    qc = qiskit.QuantumCircuit(2, name='cp45')
-                    qc.cp(np.pi/4, 0, 1)
-                    cp45_instruction = qc.to_instruction()
+                    aprox_basis_gates.append("z")
+                case "CS":
                     self._target.add_instruction(
-                        cp45_instruction,
-                        {
-                            edge: None for edge in [
-                                (x, y)
-                                for x in range(num_qubits)
-                                for y in range(num_qubits)
-                                if x != y
-                            ]
-                        }
+                        CSGate(),
+                        {edge: None for edge in [
+                            (x, y)
+                            for x in range(num_qubits)
+                            for y in range(num_qubits)
+                            if x != y
+                        ]}
+                    )
+                case "Cs":
+                    self._target.add_instruction(
+                        CSdgGate(),
+                        {edge: None for edge in [
+                            (x, y)
+                            for x in range(num_qubits)
+                            for y in range(num_qubits)
+                            if x != y
+                        ]}
                     )
                 case "m":
                     self._target.add_instruction(
@@ -307,6 +217,19 @@ class BlockchainBackend(Backend):
 
         # Set option validators
         self.options.set_validator("shots", (1, 4096))
+
+        # make the basic aproximation given the depth
+        # for the given 1-qubit gates, except identity and
+        # measure.
+        aprox = generate_basic_approximations(
+            basis_gates=aprox_basis_gates, depth=basic_approx_depth
+        )
+        # generate the pass manager for the Solovay-Kitaev algorithm
+        skd = SolovayKitaev(
+            recursion_degree=4,
+            basic_approximations=aprox
+        )
+        self.skd_pass_manager = PassManager([skd])
 
     @property
     def target(self):
@@ -318,7 +241,7 @@ class BlockchainBackend(Backend):
 
     @classmethod
     def _default_options(cls):
-        return Options(shots=4)
+        return Options(shots=10)
 
     def run(self, circuits, **kwargs):
         # serialize circuits submit to backend and create a job
@@ -357,15 +280,20 @@ class BlockchainBackend(Backend):
         Returns:
             The circuit as a string.
         """
+        # delete measure gates
+        circuit = circuit.copy()
+        circuit.data = [
+            gate for gate in circuit.data
+            if gate.operation.name != "measure"]
+        # get the pass manager
+        pass_manager = generate_preset_pass_manager(0, self)
+        pass_manager.pre_layout = self.skd_pass_manager
+        circuit = pass_manager.run(circuit)
+
         # convert circuit to json
         # return json
-        # Transpile the circuit to the target
-        transpiled_circuit = qiskit.transpile(
-            circuit,
-            backend=self
-        )
         circuit_string: str = ""
-        for gate in transpiled_circuit.data:
+        for gate in circuit.data:
             # get gate name
             gate_name = gate.operation.name
             # get the number of qubits
@@ -381,12 +309,19 @@ class BlockchainBackend(Backend):
             # if only 1 qubit gate
             match gate_num_qubits:
                 case 1:
-                    if gate_name == "p45":
-                        gate_name = "P"
-                    gate_name = gate_name.upper()
+                    if gate_name == "S":
+                        gate_name = "S"
+                    elif gate_name == "sdg":
+                        gate_name = "s"
+                    elif gate_name == "T":
+                        gate_name = "T"
+                    elif gate_name == "tdg":
+                        gate_name = "t"
+                    else:
+                        gate_name = gate_name.upper()
                     if gate_name == "MEASURE":
                         gate_name = "m"
-                    index = transpiled_circuit.find_bit(gate_qubits[0]).index
+                    index = circuit.find_bit(gate_qubits[0]).index
                     # print(index)
                     gate_string = string_replact_at(
                         gate_string,
@@ -396,22 +331,30 @@ class BlockchainBackend(Backend):
                 case 2:
                     if gate_name == "cx":
                         gate_name = "CN"
-                    elif gate_name == "cp45":
-                        gate_name = "CP"
+                    elif gate_name == "CS":
+                        gate_name = "CS"
+                    elif gate_name == "Csdg":
+                        gate_name = "Cs"
                     else:
                         raise NotImplementedError("Gate not supported")
-                    c_index = transpiled_circuit.find_bit(gate_qubits[0]).index
-                    t_index = transpiled_circuit.find_bit(gate_qubits[1]).index
+                    c_index = circuit.find_bit(gate_qubits[0]).index
+                    t_index = circuit.find_bit(gate_qubits[1]).index
                     gate_string = string_replact_at(
                         gate_string,
                         c_index,
                         "C"
                     )
-                    if gate_name == "CP":
+                    if gate_name == "CS":
                         gate_string = string_replact_at(
                             gate_string,
                             t_index,
-                            "P"
+                            "S"
+                        )
+                    if gate_name == "Cs":
+                        gate_string = string_replact_at(
+                            gate_string,
+                            t_index,
+                            "s"
                         )
                     if gate_name == "CN":
                         gate_string = string_replact_at(
@@ -425,12 +368,12 @@ class BlockchainBackend(Backend):
                     else:
                         raise NotImplementedError("Gate not supported")
                     c1_index = (
-                        transpiled_circuit.find_bit(gate_qubits[0]).index
+                        circuit.find_bit(gate_qubits[0]).index
                     )
                     c2_index = (
-                        transpiled_circuit.find_bit(gate_qubits[1]).index
+                        circuit.find_bit(gate_qubits[1]).index
                     )
-                    t_index = transpiled_circuit.find_bit(gate_qubits[2]).index
+                    t_index = circuit.find_bit(gate_qubits[2]).index
                     gate_string = string_replact_at(
                         gate_string,
                         c1_index,
@@ -458,6 +401,8 @@ class BlockchainBackend(Backend):
             len(circuit_string)-1,
             "."
         )
+
+        logger.debug(circuit_string)
         return circuit_string
 
 

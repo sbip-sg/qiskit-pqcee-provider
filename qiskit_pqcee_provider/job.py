@@ -22,6 +22,8 @@ class BlockcahinJob(Job):
             job_json: The job json.
             circuits: The circuits to run.
         """
+        # create the job id as the concatenation of the address of the
+        # contract and the random seed
         job_id = (
             str(job_handle.address) +
             "_" +
@@ -35,14 +37,17 @@ class BlockcahinJob(Job):
         self.job_handle = job_handle
         self.circuits = circuits
         self.job_status = JobStatus.INITIALIZING
+        # the results of the experiment in order of the shots
         self.experiment_results = list()
+        # the result counts of the experiemnt
         self.experiment_counts = dict()
-        # start the job
+        # start the job on a different thread
         threading.Thread(target=self.submit).start()
 
     def _wait_for_result(self, timeout=None, wait=5):
         start_time = time.time()
         result = None
+        # verify is the timeout is met or the job is done
         while True:
             elapsed = time.time() - start_time
             if timeout and elapsed >= timeout:
@@ -82,6 +87,9 @@ class BlockcahinJob(Job):
     def submit(self):
         experiment_results = list()
         experiment_counts = dict()
+        # get a random generator from the random seed given
+        # the random generator will generate seed for our
+        # function
         random_seed = np.random.RandomState(
             np.random.MT19937(
                 np.random.SeedSequence(self.job_json['random_seed'])
@@ -90,19 +98,34 @@ class BlockcahinJob(Job):
         self.job_status = JobStatus.RUNNING
         # run every shot
         for shot in range(self.job_json['shots']):
+            # TODO: find a way to to run without gas
+            call_options = {'gas': 900000000}
+            # run the circuit with the contract implementation
+            # of the simulator. The parameters are the number
+            # of qubits, the circuit as a string and the random
+            # seed
             shot_result = self.job_handle.functions.runQScript(
                 self.job_json['num_qubits'],
                 self.job_json['circuit_str'],
                 random_seed.randint(low=0, high=65535)
-            ).call()
+            ).call(call_options)
+            # The result is an unsigned integer that represents
+            # the measurement result of the circuit. We need to
+            # convert it to binary and then pad it with zeros
+            # to the number of qubits. Also revers the order of
+            # the bits to match the qiskit convention
             shot_result = format(shot_result, 'b').zfill(
                 self.job_json['num_qubits']
             )[::-1]
+            # append the result to the experiment results
             experiment_results.append(shot_result)
+            # add the result to the experiment counts
             if shot_result in experiment_counts:
                 experiment_counts[shot_result] += 1
             else:
                 experiment_counts[shot_result] = 1
         self.experiment_counts = experiment_counts
         self.experiment_results = experiment_results
+        # set the job status to done
+        # after all the shots are done
         self.job_status = JobStatus.DONE
