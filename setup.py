@@ -12,7 +12,7 @@ REQUIREMENTS = [
 
 setuptools.setup(
     name='qiskit_pqcee_provider',
-    version='0.2.0',
+    version='0.1.1',
     description='A qiskit provider on the blockchain.',
     long_description=README,
     long_description_content_type="text/markdown",

@@ -68,15 +68,18 @@ contract QuantumBackend is IQuantumBackend
 	bytes1 constant GATE_X      = 'X';
 	bytes1 constant GATE_Y      = 'Y';
 	bytes1 constant GATE_Z      = 'Z';
-	bytes1 constant GATE_S      = 'S';
-	bytes1 constant GATE_s      = 's'; // conjugate S gate sdg
+	bytes1 constant GATE_P      = 'P'; // P pi/4
+	bytes1 constant GATE_p      = 'p'; // conjugate P pi/4 gate pdg 
+	//bytes1 constant GATE_S      = 'S';
+	//bytes1 constant GATE_s      = 's'; // conjugate S gate sdg
 	bytes1 constant GATE_T      = 'T';
 	bytes1 constant GATE_t      = 't'; // conjugate T gate tdg
 	bytes1 constant GATE_m      = 'm';
 	bytes1 constant DELIM_NEXT  = ',';
 	bytes1 constant DELIM_END   = '.';
 
-	string[] public gatesNames = ["H","I","CN","CCN","X","Y","Z","S","s","T","t","CS","Cs","CT","Ct","m"];
+	// "S","s","CS","Cs"
+	string[] public gatesNames = ["H","I","CN","CCN","X","Y","Z","P45","p45","T","t","CP45","Cp45","CT","Ct","m"];
 	
 	struct Qubit
 	{
@@ -218,7 +221,7 @@ contract QuantumBackend is IQuantumBackend
 
 	}
 
-	function GATE_CS(uint256 cMask, uint256 mask, uint256 currState, Qubit memory q, uint8 Qidx) internal pure 
+	function GATE_CP(uint256 cMask, uint256 mask, uint256 currState, Qubit memory q, uint8 Qidx) internal pure 
 	{
 		uint8 nQidx = (Qidx == 0)?1:0;
 		if ((cMask & currState) == cMask) // allow cMask == 0 ==> just P, not CP
@@ -242,7 +245,7 @@ contract QuantumBackend is IQuantumBackend
 
 	}
 
-	function GATE_Cs(uint256 cMask, uint256 mask, uint256 currState, Qubit memory q, uint8 Qidx) internal pure 
+	function GATE_Cp(uint256 cMask, uint256 mask, uint256 currState, Qubit memory q, uint8 Qidx) internal pure 
 	{
 		uint8 nQidx = (Qidx == 0)?1:0;
 		if ((cMask & currState) == cMask) // allow cMask == 0 ==> just p, not Cp
@@ -442,7 +445,7 @@ contract QuantumBackend is IQuantumBackend
 						qc_CN(cMask,mask,j,q,Qidx);
 				}
 			}
-			else if ((qAlgo[i] == GATE_S) || (qAlgo[i] == GATE_s))
+			else if ((qAlgo[i] == GATE_P) || (qAlgo[i] == GATE_p))
 			{
 				uint256 tempVal = 1;
 				tempVal <<= numQubits-1;
@@ -458,10 +461,10 @@ contract QuantumBackend is IQuantumBackend
 				{
 					if ((q.rQubits[j][Qidx]!=0) || (q.iQubits[j][Qidx] != 0))
 					{
-						if (qAlgo[i] == GATE_S)
-							GATE_CS(cMask,mask,j,q,Qidx);
+						if (qAlgo[i] == GATE_P)
+							GATE_CP(cMask,mask,j,q,Qidx);
 						else
-							GATE_Cs(cMask,mask,j,q,Qidx);
+							GATE_Cp(cMask,mask,j,q,Qidx);
 					}
 				}
 			}

@@ -153,6 +153,24 @@ class BlockchainBackend(Backend):
                             if x != y and x != z and y != z
                         ]}
                     )
+                case "P45":
+                    # p45 = PhaseGate(np.pi/4, label='p45')
+                    qc = qiskit.QuantumCircuit(1, name='p45')
+                    qc.p(np.pi/4, 0)
+                    p45_instruction = qc.to_instruction()
+                    self._target.add_instruction(
+                        p45_instruction,
+                        {(qubit,): None for qubit in range(num_qubits)}
+                    )
+                case "p45":
+                    # p45 = PhaseGate(np.pi/4, label='p45')
+                    qc = qiskit.QuantumCircuit(1, name='pdg45')
+                    qc.p(-np.pi/4, 0)
+                    pdg45_instruction = qc.to_instruction()
+                    self._target.add_instruction(
+                        pdg45_instruction,
+                        {(qubit,): None for qubit in range(num_qubits)}
+                    )
                 case "S":
                     self._target.add_instruction(
                         SGate(),
@@ -209,12 +227,58 @@ class BlockchainBackend(Backend):
                             if x != y
                         ]}
                     )
+                case "CP45":
+                    qc = qiskit.QuantumCircuit(2, name='cp45')
+                    qc.cp(np.pi/4, 0, 1)
+                    cp45_instruction = qc.to_instruction()
+                    self._target.add_instruction(
+                        cp45_instruction,
+                        {
+                            edge: None for edge in [
+                                (x, y)
+                                for x in range(num_qubits)
+                                for y in range(num_qubits)
+                                if x != y
+                            ]
+                        }
+                    )
+                case "Cp45":
+                    qc = qiskit.QuantumCircuit(2, name='cpdg45')
+                    qc.cp(-np.pi/4, 0, 1)
+                    cp45_instruction = qc.to_instruction()
+                    self._target.add_instruction(
+                        cp45_instruction,
+                        {
+                            edge: None for edge in [
+                                (x, y)
+                                for x in range(num_qubits)
+                                for y in range(num_qubits)
+                                if x != y
+                            ]
+                        }
+                    )
                 case "m":
                     self._target.add_instruction(
                         Measure(),
                         {(qubit,): None for qubit in range(num_qubits)}
                     )
 
+        if ("P45" in gates_names) and ("S" not in gates_names):
+            q = qiskit.QuantumRegister(1, "q")
+            def_p_s = qiskit.QuantumCircuit(q)
+            def_p_s.append(p45_instruction, [q[0]], [])
+            def_p_s.append(p45_instruction, [q[0]], [])
+            SessionEquivalenceLibrary.add_equivalence(
+                SGate(), def_p_s)
+            aprox_basis_gates.append("s")
+        if ("p45" in gates_names) and ("s" not in gates_names):
+            q = qiskit.QuantumRegister(1, "q")
+            def_p_sdg = qiskit.QuantumCircuit(q)
+            def_p_sdg.append(pdg45_instruction, [q[0]], [])
+            def_p_sdg.append(pdg45_instruction, [q[0]], [])
+            SessionEquivalenceLibrary.add_equivalence(
+                SdgGate(), def_p_sdg)
+            aprox_basis_gates.append("sdg")
         # Set option validators
         self.options.set_validator("shots", (1, 4096))
 
@@ -267,6 +331,30 @@ class BlockchainBackend(Backend):
         job_handle = self.web3_contract
         return BlockcahinJob(self, job_handle, job_json, circuits)
 
+    def get_transpiled_circuit(
+            self,
+            circuit: qiskit.QuantumCircuit,
+    ) -> qiskit.QuantumCircuit:
+        r"""
+        Transpile a circuit.
+
+        Args:
+            circuit: The circuit to transpile.
+
+        Returns:
+            The transpiled circuit.
+        """
+        # delete measure gates
+        circuit = circuit.copy()
+        circuit.data = [
+            gate for gate in circuit.data
+            if gate.operation.name != "measure"]
+        # get the pass manager
+        pass_manager = generate_preset_pass_manager(0, self)
+        pass_manager.pre_layout = self.skd_pass_manager
+        circuit = pass_manager.run(circuit)
+        return circuit
+
     def convert_circuit_to_string(
             self,
             circuit: qiskit.QuantumCircuit,
@@ -280,15 +368,7 @@ class BlockchainBackend(Backend):
         Returns:
             The circuit as a string.
         """
-        # delete measure gates
-        circuit = circuit.copy()
-        circuit.data = [
-            gate for gate in circuit.data
-            if gate.operation.name != "measure"]
-        # get the pass manager
-        pass_manager = generate_preset_pass_manager(0, self)
-        pass_manager.pre_layout = self.skd_pass_manager
-        circuit = pass_manager.run(circuit)
+        circuit = self.get_transpiled_circuit(circuit)
 
         # convert circuit to json
         # return json
@@ -317,6 +397,10 @@ class BlockchainBackend(Backend):
                         gate_name = "T"
                     elif gate_name == "tdg":
                         gate_name = "t"
+                    elif gate_name == "p45":
+                        gate_name = "P"
+                    elif gate_name == "pdg45":
+                        gate_name = "p"
                     else:
                         gate_name = gate_name.upper()
                     if gate_name == "MEASURE":
@@ -331,10 +415,14 @@ class BlockchainBackend(Backend):
                 case 2:
                     if gate_name == "cx":
                         gate_name = "CN"
-                    elif gate_name == "CS":
+                    elif gate_name == "cs":
                         gate_name = "CS"
-                    elif gate_name == "Csdg":
+                    elif gate_name == "csdg":
                         gate_name = "Cs"
+                    elif gate_name == "cp45":
+                        gate_name = "CP"
+                    elif gate_name == "cpdg45":
+                        gate_name = "Cp"
                     else:
                         raise NotImplementedError("Gate not supported")
                     c_index = circuit.find_bit(gate_qubits[0]).index
@@ -350,18 +438,32 @@ class BlockchainBackend(Backend):
                             t_index,
                             "S"
                         )
-                    if gate_name == "Cs":
+                    elif gate_name == "Cs":
                         gate_string = string_replact_at(
                             gate_string,
                             t_index,
                             "s"
                         )
-                    if gate_name == "CN":
+                    elif gate_name == "CP":
+                        gate_string = string_replact_at(
+                            gate_string,
+                            t_index,
+                            "P"
+                        )
+                    elif gate_name == "Cp":
+                        gate_string = string_replact_at(
+                            gate_string,
+                            t_index,
+                            "p"
+                        )
+                    elif gate_name == "CN":
                         gate_string = string_replact_at(
                             gate_string,
                             t_index,
                             "N"
                         )
+                    else:
+                        raise NotImplementedError("Gate not supported")
                 case 3:
                     if gate_name == "ccx":
                         gate_name = "CCN"
