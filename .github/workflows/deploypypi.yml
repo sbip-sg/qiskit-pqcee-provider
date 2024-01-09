@@ -1,0 +1,26 @@
+name: PyPi Deploy
+
+on:
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+  
+jobs:
+  deploy:
+    runs-on: ubuntu-22.04
+    env:
+      DEBIAN_FRONTEND: "noninteractive"
+      TZ: "Asia/Singapore"
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4.1.1
+    - name: Apt Requirements
+      run: DEBIAN_FRONTEND=noninteractive sudo apt-get update && DEBIAN_FRONTEND=noninteractive sudo apt-get install -y cmake python3 python3-pip git
+    - name: Pip3 Requirements
+      run: pip3 install twine
+    - name: Configure the packgage
+      run: python3 setup.py bdist_wheel --universal
+    - name: Deploy on PyPi
+      run:  twine upload --username {{ secrets.PYPI_USER }} --password {{ secrets.PYPI_TOKEN }} --non-interactive --repository-url dist/*
+  

@@ -133,7 +133,7 @@ html_theme_options = {
     "icon_links": [
         {
             "name": "GitHub",
-            "url": "https://github.com/sdcioc/QuantumLeaderElection",
+            "url": "https://github.com/sbip-sg/qiskit-pqcee-provider",
             "icon": "fab fa-github-square",
             "type": "fontawesome",
         },
