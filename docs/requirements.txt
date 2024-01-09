@@ -1,0 +1,5 @@
+sphinx
+pydata_sphinx_theme
+sphinx-autodoc-typehints
+sphinx-autoapi
+sphinxcontrib-autoprogram
