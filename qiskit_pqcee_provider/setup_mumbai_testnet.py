@@ -59,7 +59,7 @@ def save_provider(
     Returns:
         None
     """
-    save_config(config, "mumbai_testnet_provider.ini")
+    save_config(config, "mumbai_testnet_config.ini")
 
 
 def setup_provider_contract(
@@ -337,5 +337,101 @@ def setup_mumbai_testnet():
     save_provider(provider_config)
 
 
+def add_backend_provider(self):
+    r"""
+    Add a backend to the provider.
+
+    Args:
+        None
+
+    Returns:
+        None
+    """
+    credential_config = configparser.ConfigParser(allow_no_value=True)
+
+    # ge tthe current directory
+    mod_path = pathlib.Path(__file__).parent.absolute()
+
+    credential_absolute_path = (
+        mod_path / "mumbai_testnet_credential.ini"
+    ).resolve()
+    credential_config.read(credential_absolute_path)
+    logger.info("credentials READ: %s", credential_absolute_path)
+
+    # create the wallet account if it doesn't exist
+    private_key = None
+    account_address = None
+    if 'user' in credential_config:
+        if 'private_key' in credential_config['user']:
+            private_key = credential_config['user']['private_key']
+        if 'account_address' in credential_config['user']:
+            account_address = credential_config['user']['account_address']
+    else:
+        credential_config['user'] = {}
+
+    if private_key is None:
+        raise ValueError("No private key found")
+
+    web3_account = Account.from_key(private_key)
+
+    provider_config = configparser.ConfigParser(allow_no_value=True)
+
+    provider_absolute_path = (
+        mod_path / "mumbai_testnet_config.ini"
+    ).resolve()
+    provider_config.read(provider_absolute_path)
+    logger.info("Provider config READ: %s", provider_absolute_path)
+
+    # verify if there are contracts already deployed
+    provider_contract_address = None
+    if 'mumbai' in provider_config:
+        if 'provider_address' in provider_config['mumbai']:
+            provider_contract_address = (
+                provider_config['mumbai']['provider_address']
+            )
+
+    if provider_contract_address is None:
+        raise ValueError("No provider address found")
+
+    # working address for qeb3 https://rpc-mumbai.maticvigil.com/
+    web3_provider = web3.Web3(
+        web3.Web3.HTTPProvider(
+            endpoint_uri='https://rpc-mumbai.maticvigil.com/'
+        )
+    )
+    # setup de default account
+    # setup the sigining as a middleware
+    # add poa
+    web3_provider.middleware_onion.inject(geth_poa_middleware, layer=0)
+    # add account
+    web3_provider.middleware_onion.add(
+        construct_sign_and_send_raw_middleware(web3_account)
+    )
+    web3_provider.eth.default_account = web3_account.address
+    # verify the balance
+    mumbai_balance = web3_provider.eth.get_balance(account_address)
+    logger.info("Mumbai balance: %s", mumbai_balance)
+
+    # get the current provider contract if it exists
+    relative_path = (
+        mod_path / "contracts" / "QuantumProviderInterface.sol"
+    ).resolve()
+    sc_interface_code = relative_path.read_text()
+    compiled_sol = compile_source(sc_interface_code, output_values=['abi'])
+    contract_id, contract_interface = compiled_sol.popitem()
+    abi = contract_interface['abi']
+    provider_contract = web3_provider.eth.contract(
+        address=provider_contract_address,
+        abi=abi
+    )
+    logger.info("Provider contract address: %s", provider_contract_address)
+
+    setup_backend_contract(
+        web3_provider=web3_provider,
+        provider_contract=provider_contract
+    )
+
+
 if __name__ == "__main__":
+    logger.setLevel(logging.DEBUG)
     setup_mumbai_testnet()

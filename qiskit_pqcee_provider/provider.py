@@ -29,12 +29,16 @@ class BlockchainProvider(Provider):
         web3_provider: web3.Web3,
         provider_address: str,
         is_local: bool = False,
+        basic_approx_depth: int = 3,
+        skd_recursion_degree: int = 3
     ):
         r"""
         Args:
             web3_provider: The web3 provider for the blockchain.
             provider_address: The address of the provider smart contract.
             is_local: If the provider is local or not.
+            basic_approx_depth: The basic approximation depth.
+            skd_recursion_degree: The skd recursion degree.
         """
         super().__init__()
         self.web3_provider = web3_provider
@@ -62,6 +66,8 @@ class BlockchainProvider(Provider):
                 backend_address=backend_address,
                 is_local=is_local,
                 backend_seed=0,
+                basic_approx_depth=basic_approx_depth,
+                skd_recursion_degree=skd_recursion_degree
             )
             for backend_address in web3_backends
         ]
@@ -79,7 +85,16 @@ class LocalPqceeProvider(BlockchainProvider):
     The local quantum provider on the blockchain usyng pyevm.
     """
 
-    def __init__(self):
+    def __init__(
+        self,
+        basic_approx_depth: int = 3,
+        skd_recursion_degree: int = 3
+    ):
+        """
+        Args:
+            basic_approx_depth: The basic approximation depth.
+            skd_recursion_degree: The skd recursion degree.
+        """
         web3_provider = web3.Web3(web3.Web3.EthereumTesterProvider())
         web3_account = web3_provider.eth.accounts[0]
         web3_provider.eth.default_account = web3_account
@@ -152,7 +167,9 @@ class LocalPqceeProvider(BlockchainProvider):
         super().__init__(
             web3_provider=web3_provider,
             provider_address=provider_address,
-            is_local=True
+            is_local=True,
+            basic_approx_depth=basic_approx_depth,
+            skd_recursion_degree=skd_recursion_degree
         )
 
 
@@ -161,7 +178,16 @@ class PqceeProvider(BlockchainProvider):
     The quantum provider from pQCee on the blockchain using mumbai testnet.
     """
 
-    def __init__(self):
+    def __init__(
+        self,
+        basic_approx_depth: int = 3,
+        skd_recursion_degree: int = 3
+    ):
+        """
+        Args:
+            basic_approx_depth: The basic approximation depth.
+            skd_recursion_degree: The skd recursion degree.
+        """
         # read the config file
         config = configparser.ConfigParser(allow_no_value=True)
         mod_path = pathlib.Path(__file__).parent.absolute()
@@ -191,5 +217,7 @@ class PqceeProvider(BlockchainProvider):
         super().__init__(
             web3_provider=web3_provider,
             provider_address=provider_address,
-            is_local=False
+            is_local=False,
+            basic_approx_depth=basic_approx_depth,
+            skd_recursion_degree=skd_recursion_degree
         )

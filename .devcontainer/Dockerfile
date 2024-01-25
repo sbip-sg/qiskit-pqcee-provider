@@ -24,4 +24,4 @@ RUN apt-get update && apt upgrade -y && apt-get install -y locales && locale-gen
 
 # install python packages qiskit/qiskit-aer/pydata_sphinx_theme/sphinx-autodoc-typehints/sphinx-autoapi/web3/py-solc-x/twine
 RUN pip3 install qiskit[visualization] && pip3 install qiskit-aer && pip3 install pydata_sphinx_theme && pip3 install sphinx-autodoc-typehints && \
-    pip3 install sphinx-autoapi && pip3 install sphinxcontrib-autoprogram && pip3 install web3[tester] && pip install py-solc-x && pip3 install twine
+    pip3 install sphinx-autoapi && pip3 install sphinxcontrib-autoprogram && pip3 install web3[tester] && pip install py-solc-x && pip3 install twine && pip3 install scikit-learn

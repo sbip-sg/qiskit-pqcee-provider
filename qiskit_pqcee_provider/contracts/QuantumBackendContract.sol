@@ -164,13 +164,13 @@ contract QuantumBackend is IQuantumBackend
 
 		if ((mask & currState) != 0)
 		{
-			q.rQubits[currState-mask][nQidx] += q.iQubits[currState][Qidx];
-			q.iQubits[currState-mask][nQidx] += 0-q.rQubits[currState][Qidx];
+			q.rQubits[currState+mask][nQidx] += 0-q.iQubits[currState][Qidx];
+			q.iQubits[currState+mask][nQidx] += q.rQubits[currState][Qidx];
 		}
 		else
 		{
-			q.rQubits[currState+mask][nQidx] += 0-q.iQubits[currState][Qidx];
-			q.iQubits[currState+mask][nQidx] += q.rQubits[currState][Qidx];
+			q.rQubits[currState-mask][nQidx] += q.iQubits[currState][Qidx];
+			q.iQubits[currState-mask][nQidx] += 0-q.rQubits[currState][Qidx];
 		}
 	}
 

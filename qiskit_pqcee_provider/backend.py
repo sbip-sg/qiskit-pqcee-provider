@@ -3,17 +3,18 @@ from qiskit.providers import ProviderV1 as Provider
 from qiskit.transpiler import Target
 from qiskit.providers import Options
 from qiskit.circuit import Measure
-from qiskit.circuit.library import PhaseGate, CXGate, IGate, RXGate
+from qiskit.circuit.library import CXGate, IGate, ZGate
 from qiskit.circuit.library import XGate, HGate, CCXGate, YGate
-from qiskit.circuit.library import ZGate, CPhaseGate, RGate, CRXGate
 from qiskit.circuit.library import SGate, SdgGate, TGate, TdgGate
 from qiskit.circuit.library import CSGate, CSdgGate
+# from qiskit.circuit.library import PhaseGate, RXGate
+# from qiskit.circuit.library import ZGate, CPhaseGate, RGate, CRXGate
 from qiskit.circuit.equivalence_library import SessionEquivalenceLibrary
 from qiskit.synthesis import generate_basic_approximations
 from qiskit.transpiler.passes.synthesis import SolovayKitaev
 from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
 from qiskit.transpiler import PassManager
-from qiskit.circuit.gate import Gate
+# from qiskit.circuit.gate import Gate
 import numpy as np
 import logging
 import qiskit
@@ -290,7 +291,7 @@ class BlockchainBackend(Backend):
         )
         # generate the pass manager for the Solovay-Kitaev algorithm
         skd = SolovayKitaev(
-            recursion_degree=4,
+            recursion_degree=skd_recursion_degree,
             basic_approximations=aprox
         )
         self.skd_pass_manager = PassManager([skd])
@@ -322,10 +323,17 @@ class BlockchainBackend(Backend):
             circuits = [circuits]
         # job_json = convert_to_wire_format(circuits, options)
         # job_handle = submit_to_backend(job_jsonb)
+        circuit_str: str = self.convert_circuit_to_string(circuits[0])
+        first_index = circuit_str.find(",")
+        if first_index == -1:
+            first_index = circuit_str.find(".")
+        if first_index <= 0:
+            raise ValueError("Invalid circuit string")
+        num_qubits: int = first_index
         job_json = dict(
-            circuit_str=self.convert_circuit_to_string(circuits[0]),
+            circuit_str=circuit_str,
             shots=options['shots'],
-            num_qubits=self.num_qubits,
+            num_qubits=num_qubits,
             random_seed=self.state_seed.randint(low=0, high=65535)
         )
         job_handle = self.web3_contract
@@ -370,6 +378,13 @@ class BlockchainBackend(Backend):
         """
         circuit = self.get_transpiled_circuit(circuit)
 
+        # compute the maximum num qubits
+        circuit_num_qubits = max(
+            [
+                circuit.find_bit(qubit).index
+                for gate in circuit.data
+                for qubit in gate.qubits
+            ]) + 1
         # convert circuit to json
         # return json
         circuit_string: str = ""
@@ -382,7 +397,7 @@ class BlockchainBackend(Backend):
             gate_qubits = gate.qubits
             # string to add
             # initialise with identity gates
-            gate_string = "I" * self.num_qubits
+            gate_string = "I" * circuit_num_qubits
 
             if gate_name == "barrier":
                 continue

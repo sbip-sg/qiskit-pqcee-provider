@@ -8,15 +8,16 @@ REQUIREMENTS = [
     "qiskit[visualization]",
     "web3[tester]",
     "py-solc-x",
+    "scikit-learn"
 ]
 
 setuptools.setup(
     name='qiskit_pqcee_provider',
-    version='0.1.5',
+    version='0.1.6',
     description='A qiskit provider on the blockchain.',
     long_description=README,
     long_description_content_type="text/markdown",
-    url='https://github.com/sdcioc/qiskit-pqcee-provider',
+    url='https://github.com/sbip-sg/qiskit-pqcee-provider',
     author='Stefan-Dan Ciocirlan (sdcioc)',
     author_email='stefan_dan@xn--ciocirlan-o2a.ro',
     license='MIT',

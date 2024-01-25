@@ -9,22 +9,23 @@ cr = ClassicalRegister(2, 'c')
 # Create a Quantum Circuit
 circuit = QuantumCircuit(qr, cr)
 # Add a H gate on qubit 0, putting this qubit in superposition.
-circuit.h(qr[0])
+# circuit.h(qr[0])
 # Add a CX (CNOT) gate on control qubit 0 and target qubit 1, putting
 # the qubits in a Bell state.
-circuit.cx(qr[0], qr[1])
+# circuit.cx(qr[0], qr[1])
 # add a rx gate on qubit 0
 # circuit.rx(0.5, qr[0])
 # add x gate on qubit 1
 # circuit.x(qr[1])
 # add y gate on qubit 1
 # circuit.y(qr[1])
+circuit.y(qr[0])
 # add z gate on qubit 1
 # circuit.z(qr[1])
 # add s gate on qubit 1
-circuit.s(qr[1])
+# circuit.s(qr[1])
 # add sdg gate on qubit 1
-circuit.sdg(qr[1])
+# circuit.sdg(qr[1])
 # add t gate on qubit 1
 # circuit.t(qr[1])
 # add tdg gate on qubit 1
