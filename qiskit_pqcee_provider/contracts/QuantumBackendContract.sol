@@ -54,8 +54,9 @@ modified by Stefan-Dan Ciocirlan (sdcioc) Date: 18.10.2023
 pragma solidity ^0.8.17;
 
 import "./QuantumBackendInterface.sol";
+// import "hardhat/console.sol";
 
-contract QuantumBackend is IQuantumBackend
+contract QuantumBackendContract is IQuantumBackend
 {
 	address public owner;
 	
@@ -87,6 +88,9 @@ contract QuantumBackend is IQuantumBackend
 		int256[2][MAX_IDX] iQubits;  // instance count in imaginary 
 	}
 
+	// event Qc_Y(uint256 mask, uint256 currState, Qubit q, uint8 Qidx);
+	// event modifies state 
+
 	constructor() 
 	{
 		owner = msg.sender;
@@ -94,7 +98,7 @@ contract QuantumBackend is IQuantumBackend
 
 	function getRandom(uint256 range, uint256 randomSeed) private view returns (uint) 
 	{
-		uint randomHash = uint(keccak256(abi.encode(block.prevrandao, block.timestamp, randomSeed)));
+		uint randomHash = uint(keccak256(abi.encode(block.number, block.timestamp, randomSeed)));
 		return randomHash % range;
 	}
 
@@ -164,13 +168,13 @@ contract QuantumBackend is IQuantumBackend
 
 		if ((mask & currState) != 0)
 		{
-			q.rQubits[currState+mask][nQidx] += 0-q.iQubits[currState][Qidx];
-			q.iQubits[currState+mask][nQidx] += q.rQubits[currState][Qidx];
+			q.rQubits[currState-mask][nQidx] += q.iQubits[currState][Qidx];
+			q.iQubits[currState-mask][nQidx] += 0-q.rQubits[currState][Qidx];
 		}
 		else
 		{
-			q.rQubits[currState-mask][nQidx] += q.iQubits[currState][Qidx];
-			q.iQubits[currState-mask][nQidx] += 0-q.rQubits[currState][Qidx];
+			q.rQubits[currState+mask][nQidx] += 0-q.iQubits[currState][Qidx];
+			q.iQubits[currState+mask][nQidx] += q.rQubits[currState][Qidx];
 		}
 	}
 
@@ -601,10 +605,9 @@ contract QuantumBackend is IQuantumBackend
 		i = 0;
 		for (j = 0; j < (2**numQubits); j++)
 		{
+			q.rQubits[j][0] += q.iQubits[j][0];	
 			if (q.rQubits[j][0] < 0)
 				q.rQubits[j][0] = 0 - q.rQubits[j][0];
-			if (q.iQubits[j][0] < 0)
-				q.iQubits[j][0] = 0 - q.iQubits[j][0];
 
 			i += uint(q.rQubits[j][0]);
 		}
