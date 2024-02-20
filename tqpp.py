@@ -1,6 +1,6 @@
 import qiskit_pqcee_provider as qpp
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
-from qiskit import Aer
+from qiskit_aer import AerProvider
 
 # Create a Quantum Register with 2 qubits.
 qr = QuantumRegister(2, 'q')
@@ -9,7 +9,7 @@ cr = ClassicalRegister(2, 'c')
 # Create a Quantum Circuit
 circuit = QuantumCircuit(qr, cr)
 # Add a H gate on qubit 0, putting this qubit in superposition.
-# circuit.h(qr[0])
+circuit.h(qr[0])
 # Add a CX (CNOT) gate on control qubit 0 and target qubit 1, putting
 # the qubits in a Bell state.
 # circuit.cx(qr[0], qr[1])
@@ -19,7 +19,7 @@ circuit = QuantumCircuit(qr, cr)
 # circuit.x(qr[1])
 # add y gate on qubit 1
 # circuit.y(qr[1])
-circuit.y(qr[0])
+# circuit.y(qr[0])
 # add z gate on qubit 1
 # circuit.z(qr[1])
 # add s gate on qubit 1
@@ -45,7 +45,7 @@ a = qpp.LocalPqceeProvider()
 backend = a.get_backend('pqcee_simulator')
 
 # run on the simulator
-simulator = Aer.get_backend('aer_simulator')
+simulator = AerProvider().get_backend('aer_simulator')
 result = simulator.run(circuit).result()
 print(result.get_counts())
 

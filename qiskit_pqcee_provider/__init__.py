@@ -14,11 +14,13 @@ __email__ = "stefan_dan@xn--ciocrlan-o2a.ro"
 __status__ = "Production"
 
 __all__ = [
+    "quic",
     "BlockchainProvider",
     "BlockchainBackend",
     "BlockcahinJob",
     "LocalPqceeProvider",
-    "PqceeProvider"
+    "PqceeProvider",
+
 ]
 
 # install solc if not already installed
