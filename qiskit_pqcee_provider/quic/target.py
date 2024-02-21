@@ -1,10 +1,8 @@
 # future annotations
 from __future__ import annotations
-import numpy as np
 import logging
 import qiskit
 import qiskit.circuit.equivalence_library 
-import enum
 import itertools
 
 from .gate import QuiCGate
