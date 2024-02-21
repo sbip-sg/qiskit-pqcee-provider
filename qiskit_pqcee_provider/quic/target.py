@@ -10,8 +10,8 @@ from .gate import QuiCGate
 logger = logging.getLogger(__name__)
 
 class QuiCTarget(qiskit.transpiler.Target):
-    quic_sel: qiskit.circuit.equivalence_library.EquivalenceLibrary = qiskit.circuit.equivalence_library.SessionEquivalenceLibrary
-    approximation_basis_gates: list[str] = []
+    quic_sel: qiskit.circuit.equivalence_library.EquivalenceLibrary = None
+    approximation_basis_gates: list[str] = None
 
     def __init__(
         self,
@@ -19,6 +19,9 @@ class QuiCTarget(qiskit.transpiler.Target):
         num_qubits: int
     ) -> None:
         super().__init__(num_qubits=num_qubits)
+
+        self.approximation_basis_gates = []
+        self.quic_sel = qiskit.circuit.equivalence_library.SessionEquivalenceLibrary
 
         # add all the instructions to the target
         for gate in basis_gates:

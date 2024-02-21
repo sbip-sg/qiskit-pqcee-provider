@@ -99,27 +99,21 @@ class QuiCGate(enum.Enum):
         return list(map(lambda x: x.get_qiskit_instruction().name, list(QuiCGate)))
     
     @classmethod
-    def __missing__(cls, value: str) -> QuiCGate:
+    def from_quic_name(cls, value: str) -> QuiCGate:
         for member in cls.__members__.values():
             if member.quicRepresentation == value:
                 return member
-        raise KeyError(f"Quic Gate {value} is not part of the QuiCGate enum.")
-    
-    @classmethod
-    def __getitem__(cls, value: str) -> QuiCGate:
-        return cls.__missing__(value)
-    
+        raise KeyError(f"Quic Gate {value} is not part of the QuiCGate enum.")    
 
     @classmethod
-    def __getitem_name__(cls, value: str) -> QuiCGate:
+    def _missing_(cls, value: str) -> QuiCGate:
         for member in cls.__members__.values():
-            if member.name == value:
+            if member.name == value.upper():
                 return member
         raise KeyError(f"Gate {value} is not part of the QuiCGate enum.")
 
-    
     @classmethod
-    def __getitem_qiskit_name__(cls, value: str) -> QuiCGate:
+    def from_qiskit_name(cls, value: str) -> QuiCGate:
         for member in cls.__members__.values():
             if member.get_qiskit_instruction().name == value:
                 return member

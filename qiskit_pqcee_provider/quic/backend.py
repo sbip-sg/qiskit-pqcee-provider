@@ -36,8 +36,7 @@ def get_SolovayKitaev_pass_manager(
 class QuiCBackend(Backend):
     def __init__(
         self,
-        target: QuiCTarget = None,
-        basis_gates: list[str] = None,
+        quic_basis_gates: list[str],
         num_qubits: int = 32,
         approximation_depth: int = 0,
         approximation_recursion_degree: int = 0,
@@ -53,23 +52,16 @@ class QuiCBackend(Backend):
             name=name,
             description=description
         )
-        if target is None:
-            if basis_gates is None:
-                raise ValueError(
-                    """Either target or basis_gates and
-                    num_qubits must be provided."""
-                )
-            basis_gates = list(
-                map(
-                    QuiCGate.__getitem__,
-                    basis_gates
-                )
+        basis_gates = list(
+            map(
+                QuiCGate.from_quic_name,
+                quic_basis_gates
             )
-            target = QuiCTarget(
-                basis_gates=basis_gates,
-                num_qubits=num_qubits
-            )
-        self._target = target
+        )
+        self._target = QuiCTarget(
+            basis_gates=basis_gates,
+            num_qubits=num_qubits
+        )
 
         # Set option validators
         self.options.set_validator("shots", (1, 4096))
@@ -182,7 +174,7 @@ class QuiCBackend(Backend):
                 circuit.find_bit(qubit).index
                 for gate in circuit.data
                 for qubit in gate.qubits
-            ]) + 1
+            ] + [0]) + 1
         circuit_string: str = ""
         circuit_string_list: list[str] = []
         for gate in circuit.data:
@@ -199,7 +191,7 @@ class QuiCBackend(Backend):
             if gate_name == "barrier":
                 continue
 
-            quic_gate = QuiCGate.__getitem_qiskit_name__(gate_name)
+            quic_gate = QuiCGate.from_qiskit_name(gate_name)
             # get the quic representation
             quic_representation = quic_gate.get_quic_representation()
             # modify the gate string list
@@ -270,7 +262,7 @@ class QuiCBackend(Backend):
                 # create the quic gate string
                 quic_gate_string = "C" * len(control_qubits) + quic_gate[target_qubit]
                 # get the qiskit gate
-                qiskit_gate = QuiCGate.__getitem__(quic_gate_string).get_qiskit_instruction()
+                qiskit_gate = QuiCGate.from_quic_name(quic_gate_string).get_qiskit_instruction()
                 # add the gate to the circuit
                 circuit.append(
                     qiskit_gate,
@@ -282,12 +274,12 @@ class QuiCBackend(Backend):
                 target_qubits = [
                     index
                     for index, qubit in enumerate(quic_gate)
-                    if qubit != 'I'
+                    #if qubit != 'I'
                 ]
                 # append the gates to the circuit
                 for target_qubit in target_qubits:
                     # get the qiskit gate
-                    qiskit_gate = QuiCGate.__getitem__(quic_gate[target_qubit]).get_qiskit_instruction()
+                    qiskit_gate = QuiCGate.from_quic_name(quic_gate[target_qubit]).get_qiskit_instruction()
                     if qiskit_gate.name == "measure":
                         circuit.append(
                             qiskit_gate,

@@ -39,7 +39,6 @@ optional = true
 [tool.poetry.group.docs.dependencies]
 pydata_sphinx_theme = "*"
 sphinx-autoapi = "*"
-sphinx-autoapi = "*"
 
 [build-system]
 requires = ["poetry-core"]
