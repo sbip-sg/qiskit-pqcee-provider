@@ -161,10 +161,6 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-
-# test files
-test*
-
 # mumbai credential config file
 /qiskit_pqcee_provider/mumbai_testnet_credential.ini
 

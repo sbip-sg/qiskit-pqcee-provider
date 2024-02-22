@@ -8,12 +8,20 @@ REQUIREMENTS = [
     "qiskit[visualization]",
     "web3[tester]",
     "py-solc-x",
-    "scikit-learn"
+    "scikit-learn",
+    "numpy",
+    "qiskit-aer"
 ]
+
+# read the verison from the file
+VERSION_FILE = (this_directory / "qiskit_pqcee_provider" / "VERSION.txt").resolve()
+# read the version
+with open(VERSION_FILE, "r") as version_file:
+    VERSION = version_file.read().strip()
 
 setuptools.setup(
     name='qiskit_pqcee_provider',
-    version='0.1.1',
+    version=VERSION,
     description='A qiskit provider on the blockchain.',
     long_description=README,
     long_description_content_type="text/markdown",

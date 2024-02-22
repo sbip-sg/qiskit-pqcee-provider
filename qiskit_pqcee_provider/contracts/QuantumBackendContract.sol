@@ -79,7 +79,7 @@ contract QuantumBackend is IQuantumBackend
 	bytes1 constant DELIM_END   = '.';
 
 	// "S","s","CS","Cs"
-	string[] public gatesNames = ["H","I","CN","CCN","X","Y","Z","P45","p45","T","t","CP45","Cp45","CT","Ct","m"];
+	string[] public gatesNames = ["H","I","CN","CCN","X","Y","Z","P","p","T","t","CP","Cp","CT","Ct","m"];
 	
 	struct Qubit
 	{

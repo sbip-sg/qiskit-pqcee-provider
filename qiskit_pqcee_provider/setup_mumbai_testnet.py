@@ -64,7 +64,7 @@ def save_provider(
 
 def setup_provider_contract(
     web3_provider: web3.Web3,
-) -> (str, str):
+) -> tuple[str, str]:
     r"""
     Setup the provider smart contract on the given web3 provider.
 
