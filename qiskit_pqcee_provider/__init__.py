@@ -22,6 +22,20 @@ __all__ = [
 
 ]
 
+# read the verison from the file
+import pathlib
+
+# the current directory
+ROOT_DIR = pathlib.Path(__file__).absolute().parent
+
+# the version file
+VERSION_FILE = (ROOT_DIR / "VERSION.txt").resolve()
+
+# read the version
+with open(VERSION_FILE, "r") as version_file:
+    VERSION = version_file.read().strip()
+
+__version__ = VERSION
 # install solc if not already installed
 import solcx
 

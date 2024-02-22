@@ -36,8 +36,8 @@ class BlockchainBackend(QuiCBackend):
             backend_address: str,
             is_local: bool = False,
             backend_seed: int = 0,
-            approximation_depth: int = 3,
-            approximation_recursion_degree: int = 3,
+            approximation_depth: int = 0,
+            approximation_recursion_degree: int = 0,
     ):
         r"""
         Args:
@@ -70,7 +70,7 @@ class BlockchainBackend(QuiCBackend):
         gates_names = self.web3_contract.functions.getGatesNames().call()
 
         super().__init__(
-            basis_gates=gates_names,
+            quic_basis_gates=gates_names,
             num_qubits=num_qubits,
             approximation_depth=approximation_depth,
             approximation_recursion_degree=approximation_recursion_degree,

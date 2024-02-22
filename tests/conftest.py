@@ -104,6 +104,6 @@ def complete_combinations_quic_gates_name(quic_gates_name):
 
 @pytest.fixture
 def simple_quic_backend(quic_gates_name):
-    return qiskit_pqcee_provider.quic.QuICBackend(
+    return qiskit_pqcee_provider.quic.QuiCBackend(
         quic_gates_name
     )

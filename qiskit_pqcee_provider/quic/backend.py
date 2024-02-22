@@ -314,7 +314,7 @@ class QuiCBackend(Backend):
         """
         qc = self.get_quantum_circuit_from_quic_string(
             quic_string=circuit_string,
-            add_measurements=kwargs.get('add_measurements', False)
+            add_measurements=kwargs.get('add_measurements', True)
         )
         kwargs.pop('add_measurements', None)
         return self.run(qc, **kwargs)
