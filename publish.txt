@@ -1,0 +1,11 @@
+// to buld the package
+python3 setup.py bdist_wheel --universal
+
+// to upload on testPyPi
+twine upload --repository-url https://test.pypi.org/legacy/ dist/*
+
+// To upload on PyPi
+twine upload dist/*
+
+// To test from testPyPi cahnge x.y.z with version
+pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ qiskit-pqcee-provider==x.y.z
