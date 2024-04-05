@@ -1,3 +1,4 @@
+import os 
 from eth_account import Account
 import secrets
 import configparser
@@ -177,7 +178,14 @@ def setup_backend_contract(
             " on https://mumbaifaucet.com/"
         )
         raise InvalidTransaction("Not enough MATIC")
-    tx_hash = backend_contract.constructor().transact()
+    # tx_hash = backend_contract.constructor().transact()
+    tx_hash = backend_contract.constructor().transact({
+    "from": web3_provider.eth.default_account,
+    "gasPrice": int(20e9),
+    "nonce": web3_provider.eth.get_transaction_count(web3_provider.eth.default_account)
+})
+
+
     tx_receipt = web3_provider.eth.wait_for_transaction_receipt(tx_hash)
     backend_address = tx_receipt.contractAddress
 
@@ -214,41 +222,16 @@ def setup_mumbai_testnet():
     Returns:
         None
     """
-    credential_config = configparser.ConfigParser(allow_no_value=True)
 
     # ge tthe current directory
     mod_path = pathlib.Path(__file__).parent.absolute()
 
-    credential_absolute_path = (
-        mod_path / "mumbai_testnet_credential.ini"
-    ).resolve()
-    credential_config.read(credential_absolute_path)
-    logger.info("credentials READ: %s", credential_absolute_path)
-
     # create the wallet account if it doesn't exist
-    private_key = None
-    account_address = None
-    if 'user' in credential_config:
-        if 'private_key' in credential_config['user']:
-            private_key = credential_config['user']['private_key']
-        if 'account_address' in credential_config['user']:
-            account_address = credential_config['user']['account_address']
-    else:
-        credential_config['user'] = {}
-
-    if private_key is None:
-        priv = secrets.token_hex(32)
-        private_key = "0x" + priv
-        credential_config['user']['private_key'] = private_key
+    private_key = os.environ['PRIVATE_KEY']
+    account_address = Account.from_key(private_key).address
 
     web3_account = Account.from_key(private_key)
-    if account_address is None or account_address != web3_account.address:
-        account_address = web3_account.address
-        credential_config['user']['account_address'] = account_address
-
     logger.info("Account address: %s", web3_account.address)
-
-    save_credentials(credential_config)
 
     provider_config = configparser.ConfigParser(allow_no_value=True)
 
@@ -271,7 +254,7 @@ def setup_mumbai_testnet():
     # working address for qeb3 https://rpc-mumbai.maticvigil.com/
     web3_provider = web3.Web3(
         web3.Web3.HTTPProvider(
-            endpoint_uri='https://rpc-mumbai.maticvigil.com/'
+            endpoint_uri=os.environ['TESTNET_RPC_URL']
         )
     )
     # setup de default account
@@ -347,27 +330,12 @@ def add_backend_provider(self):
     Returns:
         None
     """
-    credential_config = configparser.ConfigParser(allow_no_value=True)
-
     # ge tthe current directory
     mod_path = pathlib.Path(__file__).parent.absolute()
 
-    credential_absolute_path = (
-        mod_path / "mumbai_testnet_credential.ini"
-    ).resolve()
-    credential_config.read(credential_absolute_path)
-    logger.info("credentials READ: %s", credential_absolute_path)
-
     # create the wallet account if it doesn't exist
-    private_key = None
-    account_address = None
-    if 'user' in credential_config:
-        if 'private_key' in credential_config['user']:
-            private_key = credential_config['user']['private_key']
-        if 'account_address' in credential_config['user']:
-            account_address = credential_config['user']['account_address']
-    else:
-        credential_config['user'] = {}
+    private_key = os.environ['PRIVATE_KEY']
+    account_address = Account.from_key(private_key).address
 
     if private_key is None:
         raise ValueError("No private key found")
