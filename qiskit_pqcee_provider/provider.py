@@ -3,6 +3,7 @@ from qiskit.providers.providerutils import filter_backends
 
 from .backend import BlockchainBackend
 
+import os 
 import web3
 import pathlib
 from solcx import compile_source
@@ -206,9 +207,10 @@ class PqceeProvider(BlockchainProvider):
             raise Exception("No mumbai in config file")
 
         # working connection on web3 https://rpc-mumbai.maticvigil.com/
+        os.environ['TESTNET_RPC_URL']
         web3_provider = web3.Web3(
             web3.Web3.HTTPProvider(
-                endpoint_uri='https://rpc-mumbai.maticvigil.com/'
+                endpoint_uri=os.environ['TESTNET_RPC_URL']
             )
         )
         # setup poa
