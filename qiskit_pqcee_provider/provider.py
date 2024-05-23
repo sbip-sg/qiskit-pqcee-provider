@@ -193,7 +193,7 @@ class PqceeProvider(BlockchainProvider):
         config = configparser.ConfigParser(allow_no_value=True)
         mod_path = pathlib.Path(__file__).parent.absolute()
         absolute_path = (
-            mod_path / "mumbai_testnet_config.ini"
+            mod_path / "amoy_testnet_config.ini"
         ).resolve()
         config.read(absolute_path)
         # verify if there are contracts already deployed
@@ -207,12 +207,32 @@ class PqceeProvider(BlockchainProvider):
             raise Exception("No mumbai in config file")
 
         # working connection on web3 https://rpc-mumbai.maticvigil.com/
-        os.environ['TESTNET_RPC_URL']
+        # os.environ['TESTNET_RPC_URL']
+        # web3_provider = web3.Web3(
+        #     web3.Web3.HTTPProvider(
+        #         endpoint_uri=os.environ['TESTNET_RPC_URL']
+        #     )
+        # )
+        rpc_url = None
+        if 'RPC_URL' in config:
+            if 'TESTNET_RPC' in config['RPC_URL']:
+                rpc_url = (
+                    config['RPC_URL']['TESTNET_RPC']
+                )
+        else:
+            config['RPC_URL'] = {}
+    
+    
+        if rpc_url is None:
+            raise ValueError("No RPC URL found")
+    
+        # working address for qeb3 https://rpc-mumbai.maticvigil.com/
         web3_provider = web3.Web3(
             web3.Web3.HTTPProvider(
-                endpoint_uri=os.environ['TESTNET_RPC_URL']
+                endpoint_uri=rpc_url
             )
         )
+
         # setup poa
         web3_provider.middleware_onion.inject(geth_poa_middleware, layer=0)
 

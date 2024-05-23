@@ -22,12 +22,12 @@ sys.path.insert(0, os.path.abspath("../.."))
 # -- Project information -----------------------------------------------------
 
 project = 'Qiskit-pQCee-provider'
-copyright = '2023, Stefan Dan Ciocirlan'
-author = 'Stefan Dan Ciocirlan'
+copyright = '2024, pQCee Product Team'
+author = 'pQCee Product Team'
 
 # The full version, including alpha/beta/rc tags
-release = '0.1.1'
-version = '0.1.1'
+release = '0.1.3'
+version = '0.1.3'
 
 
 # -- General configuration ---------------------------------------------------
@@ -133,7 +133,7 @@ html_theme_options = {
     "icon_links": [
         {
             "name": "GitHub",
-            "url": "https://github.com/sbip-sg/qiskit-pqcee-provider",
+            "url": "https://github.com/pqcee/qiskit-pqcee-provider",
             "icon": "fab fa-github-square",
             "type": "fontawesome",
         },

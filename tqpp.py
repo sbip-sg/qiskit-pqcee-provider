@@ -40,7 +40,7 @@ circuit.measure(qr, cr)
 print(circuit.draw())
 
 # initi the qpp provider
-a = qpp.LocalPqceeProvider()
+a = qpp.PqceeProvider()
 # get the backend
 backend = a.get_backend('pqcee_simulator')
 

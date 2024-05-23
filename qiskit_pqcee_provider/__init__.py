@@ -4,13 +4,13 @@ from .provider import PqceeProvider
 from .backend import BlockchainBackend
 from .job import BlockcahinJob
 
-__author__ = "Stefan-Dan Ciocirlan (sdcioc)"
+__author__ = "pQCee Product Team"
 __copyright__ = "Copyright 2023, Singapore Blockchain Innovation Programme"
-__credits__ = ["Teik Guan Tan", "Sian (Jonathan) Liu"]
+__credits__ = ["Teik Guan Tan", "Sian (Jonathan) Liu", "Stefan-Dan Ciocirlan"]
 __license__ = "MIT"
-__version__ = "0.1.1"
-__maintainer__ = "Stefan-Dan Ciocirlan"
-__email__ = "stefan_dan@xn--ciocrlan-o2a.ro"
+__version__ = "0.1.3"
+__maintainer__ = "Jonathan Liu"
+__email__ = "jonathan@pqcee.com"
 __status__ = "Production"
 
 __all__ = [
